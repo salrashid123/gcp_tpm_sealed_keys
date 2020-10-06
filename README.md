@@ -2,7 +2,7 @@
 
 Sample applications that seal keys to [TPM](https://en.wikipedia.org/wiki/Trusted_Platform_Module) [Platform Configuration Registers (PCR)](https://link.springer.com/chapter/10.1007/978-1-4302-6584-9_12) values using Google [Confidential Compute](https://cloud.google.com/confidential-computing) instances
 
-This repo demostrates how a remote user can acquire a GCP VM's unique [Endorsement Public key](https://cloud.google.com/security/shielded-cloud/retrieving-endorsement-key) and then use that to seal/encrypt a key such that it can only get unsealed/decrypted _on that vm_.
+This repo demonstrates how a remote user can acquire a GCP VM's unique [Endorsement Public key](https://cloud.google.com/security/shielded-cloud/retrieving-endorsement-key) and then use that to seal/encrypt a key such that it can only get unsealed/decrypted _on that vm_.
 
 In addition, the key is sealed using a PCR policy that mandates the key can only be unsealed or used if specific PCR values are present on that VM.
 and if the VM gets deleted, the key cannot be unsealed.
@@ -14,6 +14,9 @@ There are two types of keys that are sealed and transferred
 * Seals RSA Private key to TPM
   An RSA private key that is sealed and embedded into the TPM.  Note: once an RSA key is imported, the TPM will only use it to sign data.
   The raw embedded key will not get exported outside of the TPM.   
+
+In the final step, we will alter/extend the PCR value we originally sealed data against.  This will prevent any further unsealing of the symmetric key as well as prevent import of the RSA key.  Furthermore, since we imported an RSA key with a different PCR value earlier, this will prevent using the TPM to sign  using that RSA key.
+
 
 ---
 
