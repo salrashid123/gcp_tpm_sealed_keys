@@ -99,7 +99,16 @@ func main() {
 		if err = tpm2.PolicyPCR(rwc, session, nil, tpm2.PCRSelection{tpm2.AlgSHA256, []int{*bindPCRValue}}); err != nil {
 			glog.Fatalf("PolicyPCR failed: %v", err)
 		}
-		signed, err = tpm2.SignWithSession(rwc, session, kh, "", d[:], &tpm2.SigScheme{
+
+		khDigest, khValidation, err := tpm2.Hash(rwc, tpm2.AlgSHA256, data, tpm2.HandleOwner)
+		if err != nil {
+			glog.Errorf("Hash failed unexpectedly: %v", err)
+			return
+		}
+
+		glog.V(5).Infof("     TPM based Hash %s", base64.StdEncoding.EncodeToString(khDigest))
+
+		signed, err = tpm2.SignWithSession(rwc, session, kh, "", d[:], khValidation, &tpm2.SigScheme{
 			Alg:  tpm2.AlgRSASSA,
 			Hash: tpm2.AlgSHA256,
 		})
@@ -107,12 +116,20 @@ func main() {
 			glog.Fatalf("google: Unable to Sign wit TPM: %v", err)
 		}
 	} else {
-		signed, err = tpm2.Sign(rwc, kh, "", d[:], &tpm2.SigScheme{
+		khDigest, khValidation, err := tpm2.Hash(rwc, tpm2.AlgSHA256, data, tpm2.HandleOwner)
+		if err != nil {
+			glog.Errorf("Hash failed unexpectedly: %v", err)
+			return
+		}
+
+		glog.V(5).Infof("     TPM based Hash %s", base64.StdEncoding.EncodeToString(khDigest))
+		signed, err = tpm2.Sign(rwc, kh, "", d[:], khValidation, &tpm2.SigScheme{
 			Alg:  tpm2.AlgRSASSA,
 			Hash: tpm2.AlgSHA256,
 		})
 		if err != nil {
-			glog.Fatalf("google: Unable to Sign wit TPM: %v", err)
+			glog.Fatalf("google: Unable to Sign with TPM: %v", err)
+			return
 		}
 	}
 

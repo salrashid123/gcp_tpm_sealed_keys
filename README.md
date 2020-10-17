@@ -27,24 +27,17 @@ $ tree
 .
 ├── asymmetric
 │   ├── import         // unseal an RSA Key on GCP
-│   │   ├── go.mod
 │   │   └── main.go
 │   ├── seal           // Seal RSA key to a VMs ekPub
-│   │   ├── go.mod
-│   │   ├── go.sum
 │   │   └── main.go
 │   └── sign           // use TPM keyhandle to sign data
-│       ├── go.mod
 │       └── main.go
 ├── LICENSE
 ├── pcr_utils          // used to read and extend PCR values
-│   ├── go.mod
 │   ├── main.go
 │   └── README.md
 ├── README.md
 └── symmetric          // Seal/Unseal a symmetric key
-    ├── go.mod
-    ├── go.sum
     └── main.go
 ```
 
@@ -81,8 +74,7 @@ git clone https://github.com/salrashid123/gcp_tpm_sealed_keys.git
 - Print the default value:
 
 ```bash
-cd gcp_tpm_sealed_keys/pcr_utils/
-go run main.go --mode=read --pcr=23 -v 10 -alsologtostderr
+go run pcr_utils/main.go --mode=read --pcr=23 -v 10 -alsologtostderr
 
     I1006 16:05:32.472993    2758 main.go:66] ======= Print PCR  ========
     I1006 16:05:32.474946    2758 main.go:71] PCR(23) 0000000000000000000000000000000000000000000000000000000000000000
@@ -92,7 +84,7 @@ go run main.go --mode=read --pcr=23 -v 10 -alsologtostderr
 - Increment the PCR so we have non-default value (we just do this step for demonstration)
 
 ```bash
-go run main.go --mode=extend --pcr=23 -v 10 -alsologtostderr
+go run pcr_utils/main.go --mode=extend --pcr=23 -v 10 -alsologtostderr
     I1006 16:06:55.159899    2812 main.go:74] ======= Extend PCR  ========
     I1006 16:06:55.161682    2812 main.go:79] Current PCR(23) 0000000000000000000000000000000000000000000000000000000000000000
     I1006 16:06:55.164941    2812 main.go:92] New PCR(23) f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4
@@ -101,9 +93,7 @@ go run main.go --mode=extend --pcr=23 -v 10 -alsologtostderr
 - On laptop, seal key data to PCR=23 with value `f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4`
 
 ```bash
-cd symmetric/
-
-$ go run main.go  --mode=seal --secret "hello world" --ekPubFile=/tmp/ek.pem --pcrValues=23=f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b   --sealedDataFile=sealed.dat --logtostderr=1 -v 10
+$ go run symmetric/main.go  --mode=seal --secret "hello world" --ekPubFile=/tmp/ek.pem --pcrValues=23=f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b   --sealedDataFile=sealed.dat --logtostderr=1 -v 10
     I1006 12:52:27.056727  903568 main.go:65] PCR key: 23
     I1006 12:52:27.057173  903568 main.go:98] Sealed data to file.. sealed.dat
 ```
@@ -113,8 +103,7 @@ $ go run main.go  --mode=seal --secret "hello world" --ekPubFile=/tmp/ek.pem --p
 - on VM, unseal 
 
 ```bash
-cd symmetric/
-$ go run main.go --mode=unseal --sealedDataFile=sealed.dat --logtostderr=1 -v 10
+$ go run symmetric/main.go --mode=unseal --sealedDataFile=sealed.dat --logtostderr=1 -v 10
     I1006 16:54:56.647861    3714 main.go:145] Unsealed secret: hello world
 ```
 
@@ -122,7 +111,6 @@ $ go run main.go --mode=unseal --sealedDataFile=sealed.dat --logtostderr=1 -v 10
 
 - On laptop, generate RSA key
 ```bash
-cd gcp_tpm_sealed_keys/asymmetric/
 openssl genrsa -out /tmp/key.pem 2048
 ```
 
@@ -130,8 +118,8 @@ openssl genrsa -out /tmp/key.pem 2048
 
 Note, we are using the new PCR value from the previous section `f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b`
 ```bash
-cd seal/
-$ go run main.go   \
+
+$ go run asymmetric/seal/main.go   \
      --rsaKeyFile=/tmp/key.pem  \
      --sealedOutput=sealed.dat  \
      --ekPubFile=/tmp/ek.pem \
@@ -156,8 +144,8 @@ $ go run main.go   \
 Specify the PCR value to use while creating test signature
 
 ```bash
-cd import/
-$ go run main.go   --importSigningKeyFile=sealed.dat \
+
+$ go run asymmetric/import/main.go   --importSigningKeyFile=sealed.dat \
   --keyHandleOutputFile=key.dat   --bindPCRValue=23 \
   --flush=all   --v=2 -alsologtostderr
 
@@ -178,8 +166,7 @@ $ go run main.go   --importSigningKeyFile=sealed.dat \
 - On VM
 
 ```bash
-$ cd gcp_tpm_sealed_keys/pcr_utils/
-$ go run main.go --mode=extend --pcr=23 -v 10 -alsologtostderr
+$ go run pcr_utils/main.go --mode=extend --pcr=23 -v 10 -alsologtostderr
     I1006 17:24:04.232798    4260 main.go:73] ======= Extend PCR  ========
     I1006 17:24:04.234695    4260 main.go:78] Current PCR(23) f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b
     I1006 17:24:04.238030    4260 main.go:91] New PCR(23) db56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71
@@ -188,8 +175,7 @@ $ go run main.go --mode=extend --pcr=23 -v 10 -alsologtostderr
 - Attempt to decrypt symmetric  `sealed.dat`
 
 ```bash
-cd symmetric/
-$ go run main.go --mode=unseal --sealedDataFile=sealed.dat --logtostderr=1 -v 10
+$ go run symmetric/main.go --mode=unseal --sealedDataFile=sealed.dat --logtostderr=1 -v 10
     I1006 17:25:15.127342    4319 main.go:145] Unsealed secret: 
     F1006 17:25:15.127396    4319 main.go:147] Unable to Import sealed data: unseal failed: session 1, error code 0x1d : a policy check failed
 ```
@@ -197,8 +183,7 @@ $ go run main.go --mode=unseal --sealedDataFile=sealed.dat --logtostderr=1 -v 10
 - Attempt to import asymmetric `sealded.dat`
 
 ```bash
-$ cd asymmetric/import
-$ go run main.go   --importSigningKeyFile=sealed.dat \
+$ go run asymmetric/import/main.go   --importSigningKeyFile=sealed.dat \
   --keyHandleOutputFile=key.dat   --bindPCRValue=23 \
   --flush=all   --v=2 -alsologtostderr
     I1006 17:26:23.885236    4380 main.go:51] ======= Init importSigningKey ========
@@ -209,7 +194,7 @@ $ go run main.go   --importSigningKeyFile=sealed.dat \
     I1006 17:26:23.909236    4380 main.go:93] ======= Loading sealedkey ========
     I1006 17:26:23.909402    4380 main.go:104] ======= Loading ImportSigningKey ========
     I1006 17:26:23.948927    4380 main.go:136] ======= Signing Data with Key Handle ========
-    F1006 17:26:23.953802    4380 main.go:168] google: Unable to Sign wit TPM: session 1, error code 0x1d : a policy check failed
+    F1006 17:26:23.953802    4380 main.go:168] google: Unable to Sign with TPM: session 1, error code 0x1d : a policy check failed
 ```
 
 - Attempt to embedded RSA Keyhandle `key.dat` that we loaded earlier bound to the previous PCR value (`f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b` )
@@ -221,11 +206,7 @@ $ go run main.go   --keyFile=key.dat   --bindPCRValue=23     --v=2 -alsologtostd
     I1006 17:48:30.389303    5038 main.go:34] ======= Init  ========
     I1006 17:48:30.401942    5038 main.go:61] 0 handles flushed
     I1006 17:48:30.408789    5038 main.go:75] ======= Signing Data with Key Handle ========
-    F1006 17:48:30.413426    5038 main.go:107] google: Unable to Sign wit TPM: session 1, error code 0x1d : a policy check failed
-    goroutine 1 [running]:
-    github.com/golang/glog.stacks(0xc000094b00, 0xc0000d6000, 0x7e, 0x81)
-        /root/go/pkg/mod/github.com/golang/glog@v0.0.0-20160126235308-23def4e6c14b/glog.go:769 +0xb9
-    github.com/golang/glog.(*loggingT).output(0x79e3a0, 0xc000000003, 0xc0000c4070, 0x77c7a5, 0x7, 0x6b, 0x0)
+    F1006 17:48:30.413426    5038 main.go:107] google: Unable to Sign with TPM: session 1, error code 0x1d : a policy check failed
 ```
 
 #### Appendix
