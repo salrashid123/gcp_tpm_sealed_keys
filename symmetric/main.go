@@ -9,7 +9,9 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"io/ioutil"
-"github.com/golang/protobuf/proto"
+
+	"github.com/golang/protobuf/proto"
+
 	//"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
 	pb "github.com/google/go-tpm-tools/proto"
@@ -133,7 +135,7 @@ func main() {
 		}
 
 		blob := &pb.ImportBlob{}
-		dat, err := ioutil.ReadFile("sealed.dat")
+		dat, err := ioutil.ReadFile(*sealedDataFile)
 		if err != nil {
 			glog.Fatalf("error reading sealed.dat: ", err)
 		}

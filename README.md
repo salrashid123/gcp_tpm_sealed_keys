@@ -9,11 +9,11 @@ and if the VM gets deleted, the key cannot be unsealed.
 
 There are two types of keys that are sealed and transferred
 * Seals arbitrary symmetric key to a TPM
-  An arbitrary key which can be a simple AES key or in the example below, just "hello world"
+  An arbitrary key which can be a simple AES key or in the example below, just "hello world".  Just note, the arbitrary data is encrypted such that it can only be decrypted by that TPM.  It does not unseal the arbitrary data _into_ the target TPM.  For importing an AES key, see [Duplicate and Transfer](https://github.com/salrashid123/tpm2/tree/master/tpm2_duplicate)
 
 * Seals RSA Private key to TPM
   An RSA private key that is sealed and embedded into the TPM.  Note: once an RSA key is imported, the TPM will only use it to sign data.
-  The raw embedded key will not get exported outside of the TPM.   
+  The raw embedded key will not get exported outside of the TPM.   In this mode, the RSA key is unsealed _into_ the target TPM (eg, imported)
 
 In the final step, we will alter/extend the PCR value we originally sealed data against.  This will prevent any further unsealing of the symmetric key as well as prevent import of the RSA key.  Furthermore, since we imported an RSA key with a different PCR value earlier, this will prevent using the TPM to sign  using that RSA key.
 
@@ -98,12 +98,12 @@ $ go run symmetric/main.go  --mode=seal --secret "hello world" --ekPubFile=/tmp/
     I1006 12:52:27.057173  903568 main.go:98] Sealed data to file.. sealed.dat
 ```
 
-- Copy `sealed.dat` to VM
+- Copy `sealed.dat` to VM (eg, `/tmp/sealed.dat`)
 
 - on VM, unseal 
 
 ```bash
-$ go run symmetric/main.go --mode=unseal --sealedDataFile=sealed.dat --logtostderr=1 -v 10
+$ go run symmetric/main.go --mode=unseal --sealedDataFile/tmp/sealed.dat --logtostderr=1 -v 10
     I1006 16:54:56.647861    3714 main.go:145] Unsealed secret: hello world
 ```
 
@@ -145,7 +145,7 @@ Specify the PCR value to use while creating test signature
 
 ```bash
 
-$ go run asymmetric/import/main.go   --importSigningKeyFile=sealed.dat \
+$ go run asymmetric/import/main.go   --importSigningKeyFile=/tmp/sealed.dat \
   --keyHandleOutputFile=key.dat   --bindPCRValue=23 \
   --flush=all   --v=2 -alsologtostderr
 
@@ -159,6 +159,8 @@ $ go run asymmetric/import/main.go   --importSigningKeyFile=sealed.dat \
     I1006 17:20:29.445478    4131 main.go:136] ======= Signing Data with Key Handle ========
     I1006 17:20:29.453321    4131 main.go:181] Test Signature: H4pl1iLxjuKN7n1tHsu1V5Bh/xeL/HaqvS4K6hPChBaczXuw76SVK6usBYJAYuRhdPN7jUkj/UIbw16Leo42b2o2N9pphME103iJGx+4m4OSW1rMAlPu9D7PWWH77kVNRN2/9tWDMexpVDsMChgGoTXh3X4XZ+Igt1zmTDW9kKZAG3Lkhi7FVuJ4whsT1xSC1xmHsJrhH9aKCnmJxd6poUVN4LOLcCPt5zktwOMLdx9qjGgXXxjeGLUq50SgrzMgxELFE/tgRhscycYCMZr1MvHUq1zcCF+xu8wHTMczqyDISg/k9A39an9BWG7nCUQ1tuuHEnEfgQ3GhPwchVFjDw==
 ```
+
+Note, the Test signature generated locally compared to what was on the TPM after unsealing is the same.
 
 
 ### Alter PCR value
