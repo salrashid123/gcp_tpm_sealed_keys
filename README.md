@@ -48,7 +48,7 @@ $ tree
 gcloud beta compute  instances create cc   --zone=us-central1-a \
  --machine-type=n2d-standard-2   --confidential-compute   --subnet=default \
  --network-tier=PREMIUM --maintenance-policy=TERMINATE  \
- --no-service-account --no-scopes --image=ubuntu-1804-bionic-v20200716  \
+ --no-service-account --no-scopes --image=ubuntu-2004-focal-v20210720  \
  --image-project=confidential-vm-images
 ```
 
