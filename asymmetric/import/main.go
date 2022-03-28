@@ -11,8 +11,8 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
-	pb "github.com/google/go-tpm-tools/proto"
-	"github.com/google/go-tpm-tools/tpm2tools"
+	"github.com/google/go-tpm-tools/client"
+	pb "github.com/google/go-tpm-tools/proto/tpm"
 	"github.com/google/go-tpm/tpm2"
 	"github.com/google/go-tpm/tpmutil"
 )
@@ -62,7 +62,7 @@ func importSigningKey(tpmPath string, importSigningKeyFile string, keyHandleOutp
 
 	totalHandles := 0
 	for _, handleType := range handleNames[*flush] {
-		handles, err := tpm2tools.Handles(rwc, handleType)
+		handles, err := client.Handles(rwc, handleType)
 		if err != nil {
 			return fmt.Errorf("getting handles: %v", err)
 		}
@@ -84,7 +84,7 @@ func importSigningKey(tpmPath string, importSigningKeyFile string, keyHandleOutp
 		glog.V(2).Infof("Using PCR: %i %s", bindPCRValue, hex.EncodeToString(pcr23))
 	}
 	glog.V(2).Infof("======= Loading EndorsementKeyRSA ========")
-	ek, err := tpm2tools.EndorsementKeyRSA(rwc)
+	ek, err := client.EndorsementKeyRSA(rwc)
 	if err != nil {
 		return fmt.Errorf("Unable to get EndorsementKeyRSA: %v", err)
 	}

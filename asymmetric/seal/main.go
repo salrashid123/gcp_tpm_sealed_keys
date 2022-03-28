@@ -17,7 +17,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
-	pb "github.com/google/go-tpm-tools/proto"
+	pb "github.com/google/go-tpm-tools/proto/tpm"
 
 	"github.com/google/go-tpm-tools/server"
 )
@@ -126,11 +126,11 @@ func createSigningKeyImportBlob(ekPubFile string, rsaKeyFile string, sealedOutpu
 	glog.V(2).Infof("Signature: %s", sig)
 
 	glog.V(2).Infof("======= CreateSigningKeyImportBlob for RSA Key: ========")
-	var pcrs *pb.Pcrs
+	var pcrs *pb.PCRs
 	if len(pcrMap) == 0 {
 		pcrs = nil
 	} else {
-		pcrs = &pb.Pcrs{Hash: pb.HashAlgo_SHA256, Pcrs: pcrMap}
+		pcrs = &pb.PCRs{Hash: pb.HashAlgo_SHA256, Pcrs: pcrMap}
 	}
 	blob, err := server.CreateSigningKeyImportBlob(ekPub, signingKey, pcrs)
 	if err != nil {

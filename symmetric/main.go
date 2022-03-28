@@ -14,9 +14,10 @@ import (
 
 	//"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
-	pb "github.com/google/go-tpm-tools/proto"
+	"github.com/google/go-tpm-tools/client"
+
+	pb "github.com/google/go-tpm-tools/proto/tpm"
 	"github.com/google/go-tpm-tools/server"
-	"github.com/google/go-tpm-tools/tpm2tools"
 	"github.com/google/go-tpm/tpm2"
 )
 
@@ -79,11 +80,11 @@ func main() {
 		pub, _ := x509.ParsePKIXPublicKey(block.Bytes)
 
 		mySecret := []byte(*secret)
-		var pcrs *pb.Pcrs
+		var pcrs *pb.PCRs
 		if len(pcrMap) == 0 {
 			pcrs = nil
 		} else {
-			pcrs = &pb.Pcrs{Hash: pb.HashAlgo_SHA256, Pcrs: pcrMap}
+			pcrs = &pb.PCRs{Hash: pb.HashAlgo_SHA256, Pcrs: pcrMap}
 		}
 		blob, err := server.CreateImportBlob(pub, mySecret, pcrs)
 		if err != nil {
@@ -116,7 +117,7 @@ func main() {
 
 		totalHandles := 0
 		for _, handleType := range handleNames[*flush] {
-			handles, err := tpm2tools.Handles(rwc, handleType)
+			handles, err := client.Handles(rwc, handleType)
 			if err != nil {
 				glog.Fatalf("getting handles: %v", err)
 			}
@@ -129,7 +130,7 @@ func main() {
 			}
 		}
 
-		ek, err := tpm2tools.EndorsementKeyRSA(rwc)
+		ek, err := client.EndorsementKeyRSA(rwc)
 		if err != nil {
 			glog.Fatalf("Unable to load EK from TPM: %v", err)
 		}

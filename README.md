@@ -182,7 +182,7 @@ $ go run symmetric/main.go --mode=unseal --sealedDataFile=sealed.dat --logtostde
     F1006 17:25:15.127396    4319 main.go:147] Unable to Import sealed data: unseal failed: session 1, error code 0x1d : a policy check failed
 ```
 
-- Attempt to import asymmetric `sealded.dat`
+- Attempt to import asymmetric `sealed.dat`
 
 ```bash
 $ go run asymmetric/import/main.go   --importSigningKeyFile=sealed.dat \
