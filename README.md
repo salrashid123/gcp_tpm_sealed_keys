@@ -49,7 +49,7 @@ $ tree
 ### Create Confidential Compute Instance
 
 ```bash
-gcloud beta compute  instances create cc   --zone=us-central1-a \
+gcloud compute  instances create cc   --zone=us-central1-a \
  --machine-type=n2d-standard-2   --confidential-compute   --subnet=default \
  --network-tier=PREMIUM --maintenance-policy=TERMINATE  \
  --no-service-account --no-scopes --image-family=ubuntu-2204-lts  \
@@ -62,131 +62,19 @@ gcloud beta compute  instances create cc   --zone=us-central1-a \
 gcloud compute ssh cc
 sudo su -
 apt-get update
-wet https://go.dev/dl/go1.20.2.linux-amd64.tar.gz
+wget https://go.dev/dl/go1.20.2.linux-amd64.tar.gz
 rm -rf /usr/local/go && tar -C /usr/local -xzf go1.20.2.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 ```
 
 
-### Acquire and Verify EKCert
+### Acquire
 
 - On laptop, acquire Endorsement Certificate and Public key
 
 ```bash
 # get public key
 gcloud compute instances get-shielded-identity cc --format="value(encryptionKey.ekPub)" > /tmp/ek.pem
-
-# get x509 and remove trailing extra line gcloud adds
-gcloud compute instances get-shielded-identity cc --format="value(encryptionKey.ekCert)" | awk '/^$/{n=n RS}; /./{printf "%s",n; n=""; print}' -  > /tmp/ekcert.pem
-openssl x509 -in /tmp/ekcert.pem -text -noout
-
-# optionally extract rsa pubic key from cert and compare; this will be the same as /tmp/ek.pem
-openssl x509 -pubkey -noout -in /tmp/ekcert.pem
-```
-
-Note the certificate extensions and issuers
-
-```
-        X509v3 extensions:
-            X509v3 Basic Constraints: critical
-                CA:FALSE
-            X509v3 Authority Key Identifier: 
-                67:08:C4:77:11:FD:D5:87:84:D3:2C:1D:6B:4D:97:83:60:84:25:80
-            Authority Information Access: 
-                CA Issuers - URI:https://pki.goog/cloud_integrity/tpm_ek_intermediate_3.crt
-            X509v3 CRL Distribution Points: 
-                Full Name:
-                  URI:https://pki.goog/cloud_integrity/tpm_ek_intermediate_3.crl
-            X509v3 Key Usage: critical
-                Key Encipherment
-            X509v3 Extended Key Usage: 
-                2.23.133.8.1
-            X509v3 Subject Directory Attributes: 
-                0.0...g....1.0...2.0.......
-            X509v3 Subject Alternative Name: critical
-                DirName:/2.23.133.2.1=id:474F4F47/2.23.133.2.2=vTPM/2.23.133.2.3=id:20160511
-            1.3.6.1.4.1.11129.2.1.21: 
-```
-
-* `X509v3 Extended Key Usage`
-
-  `2.23.133.8.1` is the OID [tcg-kp-EKCertificate](https://oid-rep.orange-labs.fr/get/2.23.133.8.1)
-  from [TCG specification](https://trustedcomputinggroup.org/wp-content/uploads/IWG_Platform_Certificate_Profile_v1p1_r15_pubrev.pdf) (line 960)
-
-* `Authority Information Access`
-
-  to verify the chain:
-
-```bash
-  wget https://pki.goog/cloud_integrity/tpm_ek_intermediate_3.crt
-  openssl x509 -in tpm_ek_intermediate_3.crt -text -noout
-  wget https://pki.goog/cloud_integrity/tpm_ek_root_1.crt
-   
-  # to pem
-  openssl x509 -inform der -in tpm_ek_intermediate_3.crt -outform pem -out tpm_ek_intermediate_3.pem
-  openssl x509 -inform der -in tpm_ek_root_1.crt -outform pem -out tpm_ek_root_1.pem
-
-  openssl verify -show_chain -verbose -CAfile <(cat tpm_ek_intermediate_3.pem tpm_ek_root_1.pem) /tmp/ekcert.pem
-      /tmp/ekcert.pem: OK
-      Chain:
-      depth=0:  (untrusted)
-      depth=1: C = US, ST = California, L = Mountain View, O = Google LLC, OU = Cloud, CN = "tpm_ek_v1_cloud_host-signer-0-2021-10-12T04:22:11-07:00 K:1, 3:nbvaGZFLcuc:0:18"
-      depth=2: C = US, ST = California, L = Mountain View, O = Google LLC, OU = Cloud, CN = "tpm_ek_v1_cloud_host_root-signer-0-2018-04-06T10:58:26-07:00 K:1, 1:Pw003HsFYO4:0:18"
-```
-
-* `X509v3 Subject Alternative Name`
-
-  These are OIDs for the TPM itself:
-
-  * [2.23.133.2.1](http://oid-info.com/get/2.23.133.2.1): `tcg-at-tpmManufacturer`   `hex(474F4F47)` which is `GOOG`
-  * [2.23.133.2.2](http://oid-info.com/get/2.23.133.2.2): `tcg-at-tpmModel`  which is `vTPM`
-  * [2.23.133.2.3](http://oid-info.com/get/2.23.133.2.3): `tcg-at-tpmVersion` which is `FirmwareVersion: id:20160511`
-
-  That just tells us that this certificate was part of a Google TPM (see [TCG TPM Vendor ID Registry ](https://trustedcomputinggroup.org/wp-content/uploads/TCG-TPM-VendorIDRegistry-v1p06-r0p91-pub.pdf))
-
-
-* *`X509v3 Subject Directory Attributes`
-
-  is actually `OID 2.23.133.2.16:   tcg-at-tpmSpecification`  which you can see in the asn1 parser output below.  The values denotes the TPM level (`TPM 2.0`)  
-                    
-* `1.3.6.1.4.1.11129.2.1.21` 
-
-  is a custom OID that isn't registered and openssl won't show its details
-  so lets look at it using an [asn1 parser](https://lapo.it/asn1js/#MIIFKjCCBBKgAwIBAgITAQnwBLCO4yfOu6lm5l/DEGabKjANBgkqhkiG9w0BAQsFADCBuTELMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDU1vdW50YWluIFZpZXcxEzARBgNVBAoTCkdvb2dsZSBMTEMxDjAMBgNVBAsTBUNsb3VkMVgwVgYDVQQDDE90cG1fZWtfdjFfY2xvdWRfaG9zdC1zaWduZXItMC0yMDIxLTEwLTEyVDA0OjIyOjExLTA3OjAwIEs6MSwgMzpuYnZhR1pGTGN1YzowOjE4MCAXDTIzMDMyNTE5NDE1NVoYDzIwNTMwMzE3MTk0NjU1WjAAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3sls5I5cRxko9uGC5cI2tAjmhJEswn/zN91DUkmeCenGLLeT2Y33rNzMCuROHaTjxmzy6Y1Zeh3xrVtF7+NTtIywfc1xf6b0VxrV00IcWKyuH0NN7YEyvECkNePGFqB435xEFFjleEMESTD5rfSuNgLQYIZmkUwVe6AA/yP5wOzB6oy9o3f274ys9JkfidNWzWQyfl4rNOq+TQ8oxGLWN8rxMAom+wWtCc2d2oh4nHEVGNj2Q6ddvmtVGjCGpPqY+Ka9FyO7wG0/NHRVlAx/MVfJLUXz2V5zx01sldIg3fiV3jQTBtscHV+Cu6rvIssI4L5nwoOYkZYwA6BBKv16UQIDAQABo4IB3zCCAdswDAYDVR0TAQH/BAIwADAfBgNVHSMEGDAWgBRnCMR3Ef3Vh4TTLB1rTZeDYIQlgDBWBggrBgEFBQcBAQRKMEgwRgYIKwYBBQUHMAKGOmh0dHBzOi8vcGtpLmdvb2cvY2xvdWRfaW50ZWdyaXR5L3RwbV9la19pbnRlcm1lZGlhdGVfMy5jcnQwSwYDVR0fBEQwQjBAoD6gPIY6aHR0cHM6Ly9wa2kuZ29vZy9jbG91ZF9pbnRlZ3JpdHkvdHBtX2VrX2ludGVybWVkaWF0ZV8zLmNybDAOBgNVHQ8BAf8EBAMCBSAwEAYDVR0lBAkwBwYFZ4EFCAEwIgYDVR0JBBswGTAXBgVngQUCEDEOMAwMAzIuMAIBAAICAI4wUQYDVR0RAQH/BEcwRaRDMEExFjAUBgVngQUCAQwLaWQ6NDc0RjRGNDcxDzANBgVngQUCAgwEdlRQTTEWMBQGBWeBBQIDDAtpZDoyMDE2MDUxMTBsBgorBgEEAdZ5AgEVBF4wXAwNdXMtY2VudHJhbDEtYQIGAPltg2V0DBNtaW5lcmFsLW1pbnV0aWEtODIwAghb73jZurLxTgwCY2OgIDAeoAMCAQChAwEB/6IDAQH/owMBAQCkAwEBAKUDAQEAMA0GCSqGSIb3DQEBCwUAA4IBAQC2HjGGZmsmkyRQX+vjsOtFX2SVV7rpBbhZFDW8E0Tmc/iSmYhMTao1mBjmfI03Ux1ITEiaqRv/bUv0wzFCIfvptAG49E3lvPmtsGj3sATAAk8m+xRlxa60DYEdE7MfrMbCZpoaTpFfgf9eMOe1WfJwhw0U8skKnzpAVsvqIWIFQGW8MuIghlpf/RaLtF60getuom97pMPRDVrcB2XWLNn+DPzQNprfzMv+zLCJtubiZ8P9KZphdPEIdRU2X2iKMezwn6LFjDYtFLewPmAHX07wBheK72X74NLgJwc8PZYAKOsB9RfDdqwGKAH+NMSu5mAOzf5SeaRJ5MwAmlOcok7y)
-
-
-![images/asn.png](images/asn.png)
-
-
-  That shows some interesting stuff:
-
-```text
-          extnID OBJECT IDENTIFIER 1.3.6.1.4.1.11129.2.1.21
-          extnValue OCTET STRING (94 byte) 305C0C0D75732D63656E7472616C312D61020600F96D8365740C136D696E6572616C2D…
-            SEQUENCE (6 elem)
-              UTF8String us-central1-a
-              INTEGER (40 bit) 1071284184436
-              UTF8String mineral-minutia-820
-              INTEGER (63 bit) 6624646453420814670
-              UTF8String cc
-```
-
-
-  Remember we created an instance called `cc` ...that seems to be right there in encoded form as the extension...and you're right; Google EK certs encodes the `instanceName`, `instanceID`, `projectName` and `projectNumber` _into the cert_....
-
-
-  The encoding allows you to verify that "this specific instance on GCP in this project and zone signed some data with its vTPM"
-
-  To parse this in golang
-
-```bash
-cd cert_parser/
-$ go run main.go 
-  2023/03/25 16:29:28 InstanceID: 6624646453420814670
-  2023/03/25 16:29:28 InstanceName: cc
-  2023/03/25 16:29:28 ProjectId: mineral-minutia-820
-  2023/03/25 16:29:28 ProjectNumber: 1071284184436
-  2023/03/25 16:29:28 Zone: us-central1-a
 ```
 
 ### Sealed Symmetric Key
