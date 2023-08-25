@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 
 	"crypto/sha256"
 	"encoding/base64"
@@ -17,15 +16,19 @@ const ()
 
 var (
 	handleNames = map[string][]tpm2.HandleType{
-		"all":       []tpm2.HandleType{tpm2.HandleTypeLoadedSession, tpm2.HandleTypeSavedSession, tpm2.HandleTypeTransient},
-		"loaded":    []tpm2.HandleType{tpm2.HandleTypeLoadedSession},
-		"saved":     []tpm2.HandleType{tpm2.HandleTypeSavedSession},
-		"transient": []tpm2.HandleType{tpm2.HandleTypeTransient},
+		"all":       {tpm2.HandleTypeLoadedSession, tpm2.HandleTypeSavedSession, tpm2.HandleTypeTransient},
+		"loaded":    {tpm2.HandleTypeLoadedSession},
+		"saved":     {tpm2.HandleTypeSavedSession},
+		"transient": {tpm2.HandleTypeTransient},
 	}
 
-	tpmPath      = flag.String("tpm-path", "/dev/tpm0", "Path to the TPM device (character device or a Unix socket).")
-	keyFile      = flag.String("keyFile", "", "Key File")
-	bindPCRValue = flag.Int("bindPCRValue", -1, "PCR Value to bind session to")
+	tpmPath = flag.String("tpm-path", "/dev/tpm0", "Path to the TPM device (character device or a Unix socket).")
+
+	// https://trustedcomputinggroup.org/wp-content/uploads/RegistryOfReservedTPM2HandlesAndLocalities_v1p1_pub.pdf
+	// 2.3.1 Key Handle Assignments       //  81 00 80 0016 – 81 00 FF FF16
+
+	persistentHandle = flag.Uint("persistentHandle", 0x81008000, "Handle value")
+	bindPCRValue     = flag.Int("bindPCRValue", -1, "PCR Value to bind session to")
 )
 
 func main() {
@@ -60,16 +63,21 @@ func main() {
 
 	glog.V(2).Infof("%d handles flushed\n", totalHandles)
 
-	glog.V(10).Infof("======= Loading Key Handle ========")
-	keyBytes, err := ioutil.ReadFile(*keyFile)
-	if err != nil {
-		glog.Fatalf("ContextLoad failed for ekh: %v", err)
-	}
+	glog.V(10).Infof("======= Loading Key from persistent Handle ========")
+
 	var kh tpmutil.Handle
-	kh, err = tpm2.ContextLoad(rwc, keyBytes)
+
+	pHandle := tpmutil.Handle(*persistentHandle)
+	// if you want to evict an existing
+	// err = tpm2.EvictControl(rwc, "", tpm2.HandleOwner, pHandle, pHandle)
+	// if err != nil {
+	// 	glog.Fatalf("     Unable evict persistentHandle: %v ", err)
+	// }
+	err = tpm2.EvictControl(rwc, "", tpm2.HandleOwner, kh, pHandle)
 	if err != nil {
-		glog.Fatalf("ContextLoad failed for kh: %v", err)
+		glog.Fatalf("     Unable to set persistentHandle: %v", err)
 	}
+
 	defer tpm2.FlushContext(rwc, kh)
 
 	glog.V(2).Infof("======= Signing Data with Key Handle ========")

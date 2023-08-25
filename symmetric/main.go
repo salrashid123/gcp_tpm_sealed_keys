@@ -22,10 +22,10 @@ import (
 )
 
 var handleNames = map[string][]tpm2.HandleType{
-	"all":       []tpm2.HandleType{tpm2.HandleTypeLoadedSession, tpm2.HandleTypeSavedSession, tpm2.HandleTypeTransient},
-	"loaded":    []tpm2.HandleType{tpm2.HandleTypeLoadedSession},
-	"saved":     []tpm2.HandleType{tpm2.HandleTypeSavedSession},
-	"transient": []tpm2.HandleType{tpm2.HandleTypeTransient},
+	"all":       {tpm2.HandleTypeLoadedSession, tpm2.HandleTypeSavedSession, tpm2.HandleTypeTransient},
+	"loaded":    {tpm2.HandleTypeLoadedSession},
+	"saved":     {tpm2.HandleTypeSavedSession},
+	"transient": {tpm2.HandleTypeTransient},
 }
 
 var (
