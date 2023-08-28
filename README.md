@@ -172,7 +172,7 @@ Specify the PCR value to use while creating test signature
 ```bash
 
 $ go run asymmetric/import/main.go   --importSigningKeyFile=/tmp/sealed.dat \
-  --persistentHandle=0x81008000   --bindPCRValue=23 \
+  --persistentHandle=0x81008000 --flush=all --evict=true  --bindPCRValue=23 \
   --flush=all   --v=2 -alsologtostderr
 
     I1006 17:20:29.310822    4131 main.go:51] ======= Init importSigningKey ========
@@ -212,7 +212,7 @@ $ go run symmetric/main.go --mode=unseal --sealedDataFile=sealed.dat --logtostde
 
 ```bash
 $ go run asymmetric/import/main.go   --importSigningKeyFile=sealed.dat \
-  --persistentHandle=0x81008000   --bindPCRValue=23 \
+  --persistentHandle=0x81008000  --evict=true --bindPCRValue=23 \
   --flush=all   --v=2 -alsologtostderr
     I1006 17:26:23.885236    4380 main.go:51] ======= Init importSigningKey ========
     I1006 17:26:23.898508    4380 main.go:73] Handle 0x3000000 flushed
