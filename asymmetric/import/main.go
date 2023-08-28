@@ -13,7 +13,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-tpm-tools/client"
 	pb "github.com/google/go-tpm-tools/proto/tpm"
-	"github.com/google/go-tpm/tpm2"
+	"github.com/google/go-tpm/legacy/tpm2"
 	"github.com/google/go-tpm/tpmutil"
 )
 
@@ -32,7 +32,6 @@ var (
 	keyHandleOutputFile  = flag.String("keyHandleOutputFile", "key.dat", "Filename to save the loaded keyHandle.")
 	bindPCRValue         = flag.Int("bindPCRValue", -1, "PCR Value to bind session to")
 	persistentHandle     = flag.Uint("persistentHandle", 0x81008000, "Handle value")
-	evict                = flag.Bool("evict", false, "Evict handles")
 	flush                = flag.String("flush", "transient", "Flush contexts, must be oneof transient|saved|loaded|all")
 )
 
@@ -110,15 +109,38 @@ func importSigningKey(tpmPath string, importSigningKeyFile string, keyHandleOutp
 		glog.Fatalf("error ImportSigningKey: ", err)
 	}
 
+	glog.V(10).Infof("======= Saving Key Handle========")
+	keyHandle := key.Handle()
+	defer key.Close()
+	keyBytes, err := tpm2.ContextSave(rwc, keyHandle)
+	if err != nil {
+		glog.Fatalf("ContextSave failed for keyHandle: %v", err)
+	}
+	err = ioutil.WriteFile(keyHandleOutputFile, keyBytes, 0644)
+	if err != nil {
+		glog.Fatalf("FileSave ContextSave failed for keyBytes: %v", err)
+	}
+	tpm2.FlushContext(rwc, keyHandle)
+
+	glog.V(10).Infof("======= Loading Key Handle ========")
+	keyBytes, err = ioutil.ReadFile(keyHandleOutputFile)
+	if err != nil {
+		glog.Fatalf("ContextLoad failed for ekh: %v", err)
+	}
+	var kh tpmutil.Handle
+	kh, err = tpm2.ContextLoad(rwc, keyBytes)
+	if err != nil {
+		glog.Fatalf("ContextLoad failed for kh: %v", err)
+	}
+	defer tpm2.FlushContext(rwc, kh)
+
 	// save to a persistent Handle
 	pHandle := tpmutil.Handle(*persistentHandle)
-	if *evict {
-		err = tpm2.EvictControl(rwc, "", tpm2.HandleOwner, pHandle, pHandle)
-		if err != nil {
-			glog.Fatalf("     Unable evict persistentHandle: %v ", err)
-		}
+	err = tpm2.EvictControl(rwc, "", tpm2.HandleOwner, pHandle, pHandle)
+	if err != nil {
+		glog.Fatalf("     Unable evict persistentHandle: %v ", err)
 	}
-	err = tpm2.EvictControl(rwc, "", tpm2.HandleOwner, key.Handle(), pHandle)
+	err = tpm2.EvictControl(rwc, "", tpm2.HandleOwner, kh, pHandle)
 	if err != nil {
 		glog.Fatalf("     Unable to set persistentHandle: %v", err)
 	}
@@ -159,7 +181,7 @@ func importSigningKey(tpmPath string, importSigningKeyFile string, keyHandleOutp
 
 		glog.V(5).Infof("     TPM based Hash %s", base64.StdEncoding.EncodeToString(khDigest))
 
-		signed, err = tpm2.SignWithSession(rwc, session, key.Handle(), "", d[:], khValidation, &tpm2.SigScheme{
+		signed, err = tpm2.SignWithSession(rwc, session, kh, "", d[:], khValidation, &tpm2.SigScheme{
 			Alg:  tpm2.AlgRSASSA,
 			Hash: tpm2.AlgSHA256,
 		})
@@ -174,7 +196,7 @@ func importSigningKey(tpmPath string, importSigningKeyFile string, keyHandleOutp
 			return
 		}
 		glog.V(5).Infof("     TPM based Hash %s", base64.StdEncoding.EncodeToString(khDigest))
-		signed, err = tpm2.Sign(rwc, key.Handle(), "", d[:], khValidation, &tpm2.SigScheme{
+		signed, err = tpm2.Sign(rwc, kh, "", d[:], khValidation, &tpm2.SigScheme{
 			Alg:  tpm2.AlgRSASSA,
 			Hash: tpm2.AlgSHA256,
 		})

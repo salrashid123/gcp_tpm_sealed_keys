@@ -7,17 +7,17 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/go-tpm-tools/client"
-	"github.com/google/go-tpm/tpm2"
+	"github.com/google/go-tpm/legacy/tpm2"
 	"github.com/google/go-tpm/tpmutil"
 )
 
 const defaultRSAExponent = 1<<16 + 1
 
 var handleNames = map[string][]tpm2.HandleType{
-	"all":       []tpm2.HandleType{tpm2.HandleTypeLoadedSession, tpm2.HandleTypeSavedSession, tpm2.HandleTypeTransient},
-	"loaded":    []tpm2.HandleType{tpm2.HandleTypeLoadedSession},
-	"saved":     []tpm2.HandleType{tpm2.HandleTypeSavedSession},
-	"transient": []tpm2.HandleType{tpm2.HandleTypeTransient},
+	"all":       {tpm2.HandleTypeLoadedSession, tpm2.HandleTypeSavedSession, tpm2.HandleTypeTransient},
+	"loaded":    {tpm2.HandleTypeLoadedSession},
+	"saved":     {tpm2.HandleTypeSavedSession},
+	"transient": {tpm2.HandleTypeTransient},
 }
 
 var (

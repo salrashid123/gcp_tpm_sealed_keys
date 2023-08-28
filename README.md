@@ -135,6 +135,10 @@ $ go run symmetric/main.go --mode=unseal --sealedDataFile=/tmp/sealed.dat --logt
 openssl genrsa -out /tmp/key.pem 2048
 ```
 
+>> note the private key  needs to be in `ParsePKCS8PrivateKey` format (thats just because i'm lazy)
+
+ openssl rsa -in private.pem -out /tmp/key_rsa.pem -traditional
+
 - On laptop, seal RSA key and create test signature
 
 Note, we are using the new PCR value from the previous section `f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b`
