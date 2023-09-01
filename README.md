@@ -237,6 +237,106 @@ $ go run main.go   --persistentHandle=0x81008000   --bindPCRValue=23     --v=2 -
     F1006 17:48:30.413426    5038 main.go:107] google: Unable to Sign with TPM: session 1, error code 0x1d : a policy check failed
 ```
 
+#### Transfer RSA key with password policy from A->B
+
+If you want to see what the sealed rsa transfer looks like using `tpm2_tools` and a password policy, then using sample from [tpm2_duplicate](https://github.com/tpm2-software/tpm2-tools/blob/master/man/tpm2_duplicate.1.md)
+
+
+
+- TPM-B
+
+```bash
+$ tpm2_createprimary -c primary.ctx
+$ tpm2_readpublic -c primary.ctx -o primary.pub
+
+$ tpm2_print -t TPM2B_PUBLIC  primary.pub
+
+## read as PEM
+$ tpm2_readpublic -f PEM -c primary.ctx  -o primary.pem
+```
+
+copy primary.pub to TPM-A
+
+- TPM-A
+
+```bash
+# $ openssl genrsa -out rsa.pem
+
+$ cat rsa.pem 
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpQIBAAKCAQEAwlmH3di2JpoBUtE6JKXthqPnS2tZXqFS302RuQavVFwZ7l7z
+MbgAEvqzrF+JIhGr4LEVJwfNBbzOCNu+fT55Vq5/Pt3hCibb7/B2N4I4trfjdt2t
+7+Kd8h4plMrszfY/gvK7MQBINe0spSAPWdnWkGXFY4emRbwo3NmjpLaSv0489LTD
+gOA9uaPEk2dudrGyACWmbGMKm/2mxGVCuFIvtqW/Az/tpJ8mWVZZX4kmOlIIKZSd
+ctF3wvyv1fTVwcmxfqGeFkN5WcSvUipZguRVNgLPBuYIMhC8+H+C1bw8FV+9TLs6
+sHMSHp9GfwDQnkdnx4kInxhkD3/AT3B1gUZiKwIDAQABAoIBAQCMzH4A+7pi1tm0
+nP2phUhCbcXoPro9M1StkC3NRQmKbTsgFUvMrkfneBbo/0GDHBhQLRps71raGEGP
+61ris3sGkF6BNg+N4j8eYi/S4RWjUi+JcupLSvswaCepsyXBxO+YN6/jvReTceMR
+MdvNNWMbs49AHwsXpExaS5Yhg19nFcxJd6MOfmFvJ9UimPh7XgSCtmrdQ0XKPoxG
+7vWaNERN7xqgDyYG0oR2i+/4sDZ5KolehXNjmdDD/8qwa4PVEgVBn9QaypHNC1nD
+njG39hIPvdN1Ix8kn7jtzuB0qePnQLC+87R4KAOXFNG3FGgUmDFVAIy7CSLcAJNG
+G8yQy/GhAoGBAO/aXjBK6QnE19eDbm/mKzZB2+IVrdVe7cuORrqBlRrTf8NbqxtT
+aIBd3kBfuGGLwuJLWLsyy1wc/rx0SZ/MOOWxk+/QQKhvp4dxn2imCBoNvozU6/Xg
+I5Iawos6rwM8VGAcaaRa/atlGUpmSp5cVBl//HKAO5PyKS/PIxPjfaZxAoGBAM9u
+9VoEx1yEK4cJDIX1KWIBCMq9lXBYv09WsLERKdfo4hMwbuv2CMMadvqPEh3h+dKr
+4r7/cyrIyx4ydkRLBD1JC0yMUTMftqm5WBrImUvjpSNt8oV90R8VBDrfHzpRrFfj
+9lEm0mKdl2Kn1R+Gu50aHNSwna+GhSjOgsHPK7hbAoGBALKaN6LcVTV6B4OqkfTv
+PuQzHGn43K3S912pP0+oKICGV1AAlaROcrWLsHDdFi5E5USe+J7EzxtzV9i6+wvs
+Bb48gj2EJHGIWwaHfD1vzP6hl2/FKUO4uKQWGyGT/Dh7lxTOc3f4bYZQTQnSq+PK
+OrGWVURp6nNbUoIQSz2HG8xxAoGBAMAV7/28DyENA4G4T3B85iVq78lOZePzSrUd
+geF2E1lsvm0mnJDE9Lg2+ZZshkpFyCHeKcrUosErz2vXLs1u6i4WRfBMv6Sn6W6h
+w4SJ3er4kyOL3Njg+ZXe0Fvz4ecPWpjI8H+Vg5zuchFZeXIIQhPo6mnKYzr3RrfT
+BCKUxdehAoGAA2lkBrhF/kw9i4bQ+ohOcIaU6cqF9PSlYKT/2LbP19C7O9Sld9rH
+mdvDiyyIs7fXWnCuxPwl8PSjDCXbUrij2lQmgCndPWT8w2U22Y/E9xpGOwIQBd+P
+YQJn9mZMKihGI5E381Oicx4jCBzpnGrVJ13j5rgyPmom6X55U6rwH3E=
+-----END RSA PRIVATE KEY-----
+
+$ echo "meet me at.." >file.txt
+$ openssl dgst -sha256 -sign rsa.pem  file.txt | base64
+    hBZMi+lPLdx7/k+V2auCxcMrAE+mjXzsNvDFYHV9Zqil3990vauF8vfaO9GZeWdBWV45YdmJvsh0
+    lrPog5b68hvmvx0A1row7ZrjWCuy6o2lXc04NIzrPSXC+nQb7ptnf5PET8VF6GamcDi5+1Zp5IOH
+    Wxz82T+AkIFGY16Hz04qmkIUrBnzwuhbpaYY4XzBUPQTvhH2IWmO7y70rDBYoSYLfQtBGWVbfgAf
+    oNglCIJmR0ctq6+FFa1EmhXNIjfgvwjvDXmpDMJDqsNZKgEdljlP155cWoqKNEO/3ypVEP51u6EU
+    AD7hypXO5Femy+/AZhD7VUu1gp0TWOOTvPqs+Q==
+
+
+$ tpm2_startauthsession --policy-session -S session.dat
+$ tpm2_policypassword -S session.dat -L policy.dat
+$ tpm2_flushcontext session.dat
+$ tpm2_duplicate -U primary.pub -G rsa -k rsa.pem -u rsa.pub -r rsa.dpriv -s rsa.seed -L policy.dat  -p testpassword
+```
+
+copy `rsa.pub`, `rsa.dpriv` and `rsa.seed` to `TPM-A`
+
+- TPM-B
+
+```bash
+$ tpm2_import -C primary.ctx -G rsa -i rsa.dpriv -s rsa.seed -u rsa.pub -r rsa.priv
+$ tpm2_load -C primary.ctx -c rsa.ctx -u rsa.pub -r rsa.priv
+
+$ echo "meet me at.." >file.txt
+$ tpm2_sign -c rsa.ctx -g sha256  -f plain -p testpassword -o sig.rss  file.txt
+
+$ cat sig.rss | base64
+    hBZMi+lPLdx7/k+V2auCxcMrAE+mjXzsNvDFYHV9Zqil3990vauF8vfaO9GZeWdBWV45YdmJvsh0
+    lrPog5b68hvmvx0A1row7ZrjWCuy6o2lXc04NIzrPSXC+nQb7ptnf5PET8VF6GamcDi5+1Zp5IOH
+    Wxz82T+AkIFGY16Hz04qmkIUrBnzwuhbpaYY4XzBUPQTvhH2IWmO7y70rDBYoSYLfQtBGWVbfgAf
+    oNglCIJmR0ctq6+FFa1EmhXNIjfgvwjvDXmpDMJDqsNZKgEdljlP155cWoqKNEO/3ypVEP51u6EU
+    AD7hypXO5Femy+/AZhD7VUu1gp0TWOOTvPqs+Q==
+```
+
+
+(or after reboot, reload the chain)
+```bash
+$ tpm2_createprimary -c primary.ctx
+$ tpm2_load -C primary.ctx -c rsa.ctx -u rsa.pub -r rsa.priv
+$ tpm2_sign -c rsa.ctx -g sha256  -f plain -p testpassword -o sig.rss  file.txt
+```
+
+for other policy support within go-tpm-tools,  see [go-tpm-tools/issues/350](https://github.com/google/go-tpm-tools/issues/350)
+
+
+
 #### Appendix
 
 - [Duplicate and Transfer](https://github.com/salrashid123/tpm2/tree/master/tpm2_duplicate)
