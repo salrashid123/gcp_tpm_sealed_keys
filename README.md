@@ -77,6 +77,8 @@ export PATH=$PATH:/usr/local/go/bin
 gcloud compute instances get-shielded-identity cc --format="value(encryptionKey.ekPub)" > /tmp/ek.pem
 ```
 
+You can also get the EK using `tpm2_tools` directly from the VM:  see [Read EK keys](https://github.com/salrashid123/tpm2/tree/master/gcp_ek_ak#read-ek-keys-on-gce)
+
 ### Sealed Symmetric Key
 
 
