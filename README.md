@@ -28,6 +28,8 @@ $ tree
 ├── asymmetric
 │   ├── import         // unseal an RSA Key on GCP
 │   │   └── main.go
+│   ├── persistent
+│   │   └── main.go    // Seal and Unseal RSA key to VMs ekPUB but write the TPM's RSA key reference public/private key to files
 │   ├── seal           // Seal RSA key to a VMs ekPub
 │   │   └── main.go
 │   └── sign           // use TPM keyhandle to sign data
@@ -189,6 +191,83 @@ $ go run asymmetric/import/main.go   --importSigningKeyFile=/tmp/sealed.dat \
 ```
 
 Note, the Test signature generated locally compared to what was on the TPM after unsealing is the same.
+
+
+#### Sealed Asymmetric Key with persistent files
+
+##### on laptop
+
+The following program will seal and unseal an RSA key but critically, the imported RSA key on the tpm has the public/private key saved to files.
+
+THis means the key can be reused after reboots easily.
+
+```bash
+gcloud compute instances get-shielded-identity instance-1 --format="value(encryptionKey.ekPub)" > /tmp/ek.pem
+
+openssl genrsa -out /tmp/key.pem 2048
+openssl rsa -in /tmp/key.pem -out /tmp/key_rsa.pem -traditional
+```
+
+##### Without PCR Policy
+
+
+```bash
+go run asymmetric/seal/main.go   \
+     --rsaKeyFile=/tmp/key_rsa.pem  \
+     --sealedOutput=sealsealed_no_pcred.dat  \
+     --ekPubFile=/tmp/ek.pem \
+      --v=10 -alsologtostderr
+
+gcloud compute scp sealed_no_pcr.dat instance-1:/tmp/sealed_no_pcr.dat
+```
+
+##### on instance-1
+
+```bash
+sudo /usr/local/go/bin/go run main.go --mode=import  --importSigningKeyFile=sealed_no_pcr.dat   --flush=all
+## by default the public/private references are saved to pub.dat and priv.dat
+sudo /usr/local/go/bin/go run main.go --mode=sign  --flush=all
+## reboot and read the pub.dat and priv.dat to sign data
+sudo /usr/local/go/bin/go run main.go --mode=sign  --flush=all
+```
+
+
+##### With PCR Policy
+
+first alter the tpm's pcr value so we can test:
+
+```bash
+$ tpm2_pcrread sha256:23
+$ tpm2_pcrextend 23:sha256=0x0000000000000000000000000000000000000000000000000000000000000000
+$ tpm2_pcrread sha256:23
+    sha256:
+      23: 0xF5A5FD42D16A20302798EF6ED309979B43003D2320D9F0E8EA9831A92759FB4B
+```
+
+on laptop
+
+then seal to that pcr value
+
+```bash 
+go run asymmetric/seal/main.go   \
+     --rsaKeyFile=/tmp/key_rsa.pem  \
+     --sealedOutput=sealed_pcr.dat  --pcrValues=23=f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b   \
+     --ekPubFile=/tmp/ek.pem \
+      --v=10 -alsologtostderr
+
+gcloud compute scp sealed_pcr instance-1:sealed_pcr.dat 
+```
+
+##### on instance-1
+
+```bash
+sudo /usr/local/go/bin/go run main.go --mode=import  --importSigningKeyFile=sealed_pcr.dat   --flush=all --bindPCRValues=23
+## remember to set the pcr23 value forward
+sudo /usr/local/go/bin/go run main.go --mode=sign  --flush=all --bindPCRValues=23
+## reboot, remember to reset the pcr23 value forward
+sudo /usr/local/go/bin/go run main.go --mode=sign  --flush=all --bindPCRValues=23
+```
+
 
 
 ### Alter PCR value
