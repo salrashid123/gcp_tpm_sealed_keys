@@ -224,11 +224,13 @@ gcloud compute scp sealed_no_pcr.dat instance-1:/tmp/sealed_no_pcr.dat
 ##### on instance-1
 
 ```bash
-sudo /usr/local/go/bin/go run main.go --mode=import  --importSigningKeyFile=sealed_no_pcr.dat   --flush=all
+sudo /usr/local/go/bin/go run asymmetric/persistent/main.go --mode=import --pub pub.dat -priv priv.dat --importSigningKeyFile=sealed_no_pcr.dat   --flush=all
 ## by default the public/private references are saved to pub.dat and priv.dat
-sudo /usr/local/go/bin/go run main.go --mode=sign  --flush=all
+
+sudo /usr/local/go/bin/go run asymmetric/persistent/main.go --mode=sign --pub pub.dat -priv priv.dat  --flush=all
+
 ## reboot and read the pub.dat and priv.dat to sign data
-sudo /usr/local/go/bin/go run main.go --mode=sign  --flush=all
+sudo /usr/local/go/bin/go run asymmetric/persistent/main.go --mode=sign --pub pub.dat -priv priv.dat  --flush=all
 ```
 
 
@@ -261,11 +263,11 @@ gcloud compute scp sealed_pcr instance-1:sealed_pcr.dat
 ##### on instance-1
 
 ```bash
-sudo /usr/local/go/bin/go run main.go --mode=import  --importSigningKeyFile=sealed_pcr.dat   --flush=all --bindPCRValues=23
+sudo /usr/local/go/bin/go run asymmetric/persistent/main.go --mode=import --pub pub.dat -priv priv.dat --importSigningKeyFile=sealed_pcr.dat   --flush=all --bindPCRValues=23
 ## remember to set the pcr23 value forward
-sudo /usr/local/go/bin/go run main.go --mode=sign  --flush=all --bindPCRValues=23
+sudo /usr/local/go/bin/go run asymmetric/persistent/main.go --mode=sign  --flush=all --pub pub.dat -priv priv.dat  --bindPCRValues=23
 ## reboot, remember to reset the pcr23 value forward
-sudo /usr/local/go/bin/go run main.go --mode=sign  --flush=all --bindPCRValues=23
+sudo /usr/local/go/bin/go run asymmetric/persistent/main.go --mode=sign  --flush=all --pub pub.dat -priv priv.dat  --bindPCRValues=23
 ```
 
 
