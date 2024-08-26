@@ -1,18 +1,19 @@
-## Sealing RSA and Symmetric keys with GCP vTPMs
+## Transferring RSA and Symmetric keys with GCP vTPMs
 
-Sample applications that seal keys to [TPM](https://en.wikipedia.org/wiki/Trusted_Platform_Module) [Platform Configuration Registers (PCR)](https://link.springer.com/chapter/10.1007/978-1-4302-6584-9_12) values using Google [Confidential Compute](https://cloud.google.com/confidential-computing) instances
+Sample applications that transfers keys to [TPM](https://en.wikipedia.org/wiki/Trusted_Platform_Module) [Platform Configuration Registers (PCR)](https://link.springer.com/chapter/10.1007/978-1-4302-6584-9_12) values using Google [Confidential Compute](https://cloud.google.com/confidential-computing) instances
 
-This repo demonstrates how a remote user can acquire a GCP VM's unique [Endorsement Public key](https://cloud.google.com/security/shielded-cloud/retrieving-endorsement-key) and then use that to seal/encrypt a key such that it can only get unsealed/decrypted _on that vm_.
+This repo demonstrates how a remote user can acquire a GCP VM's unique [Endorsement Public key](https://cloud.google.com/security/shielded-cloud/retrieving-endorsement-key) and then use that to encrypt a key such that it can only get decrypted _on that vm_.
 
 In addition, the key is sealed using a PCR policy that mandates the key can only be unsealed or used if specific PCR values are present on that VM 
 and if the VM gets deleted, the key cannot be unsealed.
 
 There are two types of keys that are sealed and transferred
-* Seals arbitrary symmetric key to a TPM
-  An arbitrary key which can be a simple AES key or in the example below, just "hello world".  Just note, the arbitrary data is encrypted such that it can only be decrypted by that TPM.  It does not unseal the arbitrary data _into_ the target TPM.  The capability to embed a key into a TPM is not yet implemented in `go-tpm-tools` but it is covered under `tpm-tools` [Duplicate and Transfer](https://github.com/salrashid123/tpm2/tree/master/tpm2_duplicate)
 
-* Seals RSA Private key to TPM
-  An RSA private key that is sealed and embedded into the TPM.  Note: once an RSA key is imported, the TPM will only use it to sign data.
+* transfers arbitrary data to a TPM
+  An arbitrary key which can be a simple AES key or in the example below, just "hello world".  Just note, the arbitrary data is encrypted such that it can only be decrypted by that TPM.  It does not import the arbitrary data _into_ the target TPM.  The capability to embed a key into a TPM is not yet implemented in `go-tpm-tools` but it is covered under `tpm-tools` [Duplicate and Transfer](https://github.com/salrashid123/tpm2/tree/master/tpm2_duplicate)
+
+* transfers RSA Private key to TPM
+  An RSA private key that is transferred and **embedded into the TPM**.  Note: once an RSA key is imported, the TPM will only use it to sign data.
   The raw embedded key will not get exported outside of the TPM.   In this mode, the RSA key is unsealed _into_ the target TPM (eg, imported)
 
 In the final step, we will alter/extend the PCR value we originally sealed data against.  This will prevent any further unsealing of the symmetric key as well as prevent import of the RSA key.  Furthermore, since we imported an RSA key with a different PCR value earlier, this will prevent using the TPM to sign  using that RSA key.
@@ -52,10 +53,9 @@ $ tree
 
 ```bash
 gcloud compute  instances create cc   --zone=us-central1-a \
- --machine-type=n2d-standard-2   --confidential-compute   --subnet=default \
- --network-tier=PREMIUM --maintenance-policy=TERMINATE  \
- --no-service-account --no-scopes --image-family=ubuntu-2204-lts  \
- --image-project=confidential-vm-images
+    --machine-type=n2d-standard-2  --min-cpu-platform="AMD Milan"  \
+    --shielded-secure-boot --no-service-account --no-scopes  \
+    --shielded-vtpm --confidential-compute-type=SEV
 ```
 
 [install golang](https://golang.org/doc/install)
@@ -81,7 +81,7 @@ gcloud compute instances get-shielded-identity cc --format="value(encryptionKey.
 
 You can also get the EK using `tpm2_tools` directly from the VM:  see [Read EK keys](https://github.com/salrashid123/tpm2/tree/master/gcp_ek_ak#read-ek-keys-on-gce)
 
-### Sealed Symmetric Key
+### Transfer Symmetric Key
 
 
 - On `cc` VM we create, extend PCR value for `PCR=23`
@@ -132,7 +132,7 @@ $ go run symmetric/main.go --mode=unseal --sealedDataFile=/tmp/sealed.dat --logt
     I1006 16:54:56.647861    3714 main.go:145] Unsealed secret: hello world
 ```
 
-### Sealed Asymmetric Key
+### Transfer Asymmetric Key
 
 - On laptop, generate *RSA key*
 ```bash
@@ -193,7 +193,7 @@ $ go run asymmetric/import/main.go   --importSigningKeyFile=/tmp/sealed.dat \
 Note, the Test signature generated locally compared to what was on the TPM after unsealing is the same.
 
 
-#### Sealed Asymmetric Key with persistent files
+#### Transfer Asymmetric Key with persistent files
 
 ##### on laptop
 
